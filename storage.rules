@@ -1,0 +1,25 @@
+// storage.rules
+// Copy into Firebase Console → Storage → Rules
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Thumbnails: admin can upload, anyone can read
+    match /thumbnails/{imageId} {
+      allow read: if true;
+      allow write: if request.auth != null &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Payment proofs: authenticated users can upload their own, admin can read all
+    match /payment-proofs/{uid}/{fileId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == uid ||
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024; // 5MB limit
+    }
+  }
+}
